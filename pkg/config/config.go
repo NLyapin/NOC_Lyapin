@@ -2,26 +2,54 @@ package config
 
 import (
 	"fmt"
-	"os"
+	"sync"
 )
 
-// LoadConfig загружает конфигурацию из указанного файла
-func LoadConfig(fileName string) map[string]string {
-	fmt.Printf("Loading configuration from %s...\n", fileName)
+// ConfigStore хранит конфигурации в памяти
+type ConfigStore struct {
+	configs map[string]map[string]string
+	mu      sync.RWMutex
+}
 
-	// В реальном проекте это будет чтение и парсинг файла конфигурации
-	// Для простоты в данном примере используется заглушка
-	if _, err := os.Stat(fileName); os.IsNotExist(err) {
-		fmt.Println("Configuration file not found!")
-		return nil
+// NewConfigStore создает новый экземпляр ConfigStore
+func NewConfigStore() *ConfigStore {
+	return &ConfigStore{
+		configs: make(map[string]map[string]string),
 	}
+}
 
-	// Пример конфигурации
-	config := map[string]string{
-		"device_ip": "192.168.1.1",
-		"username":  "admin",
-		"password":  "password",
+// AddConfig добавляет новую конфигурацию
+func (cs *ConfigStore) AddConfig(name string, config map[string]string) {
+	cs.mu.Lock()
+	defer cs.mu.Unlock()
+	cs.configs[name] = config
+	fmt.Printf("Added configuration: %s\n", name)
+}
+
+// UpdateConfig обновляет существующую конфигурацию
+func (cs *ConfigStore) UpdateConfig(name string, config map[string]string) {
+	cs.mu.Lock()
+	defer cs.mu.Unlock()
+	if _, exists := cs.configs[name]; exists {
+		cs.configs[name] = config
+		fmt.Printf("Updated configuration: %s\n", name)
+	} else {
+		fmt.Printf("Configuration %s does not exist.\n", name)
 	}
+}
 
-	return config
+// DeleteConfig удаляет конфигурацию
+func (cs *ConfigStore) DeleteConfig(name string) {
+	cs.mu.Lock()
+	defer cs.mu.Unlock()
+	delete(cs.configs, name)
+	fmt.Printf("Deleted configuration: %s\n", name)
+}
+
+// GetConfig возвращает конфигурацию по имени
+func (cs *ConfigStore) GetConfig(name string) (map[string]string, bool) {
+	cs.mu.RLock()
+	defer cs.mu.RUnlock()
+	config, exists := cs.configs[name]
+	return config, exists
 }

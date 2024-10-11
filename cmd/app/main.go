@@ -10,16 +10,37 @@ import (
 func main() {
 	fmt.Println("Network Configuration System is starting...")
 
-	// Пример использования модуля конфигураций
-	configData := config.LoadConfig("example-config.yaml")
-	fmt.Println("Loaded configuration:", configData)
+	// Создаем хранилище конфигураций
+	configStore := config.NewConfigStore()
+
+	// Пример добавления конфигурации
+	configStore.AddConfig("Router1", map[string]string{
+		"device_ip": "192.168.1.1",
+		"username":  "admin",
+		"password":  "password",
+	})
+
+	// Получение конфигурации
+	if config, exists := configStore.GetConfig("Router1"); exists {
+		fmt.Println("Loaded configuration:", config)
+	}
 
 	// Пример взаимодействия с сетевым устройством
 	device := devices.NewDevice("192.168.1.1", "admin", "password")
-	status := device.Connect()
-	if status {
+	if device.Connect() {
 		fmt.Println("Device connected successfully!")
+		fmt.Println(device.GetDeviceInfo())
 	} else {
 		fmt.Println("Failed to connect to the device.")
 	}
+
+	// Обновление конфигурации
+	configStore.UpdateConfig("Router1", map[string]string{
+		"device_ip": "192.168.1.2",
+		"username":  "admin",
+		"password":  "newpassword",
+	})
+
+	// Удаление конфигурации
+	configStore.DeleteConfig("Router1")
 }
