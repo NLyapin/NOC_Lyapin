@@ -25,7 +25,10 @@ var (
 
 // Устанавливаем SSH-подключение и туннель к SNMP-серверу
 func main() {
+	fmt.Println("Старт программы")
+
 	// Подключение по SSH
+	fmt.Println("Устанавливаем SSH-подключение к промежуточному серверу...")
 	config := &ssh.ClientConfig{
 		User: sshUser,
 		Auth: []ssh.AuthMethod{
@@ -39,8 +42,10 @@ func main() {
 		log.Fatalf("Ошибка подключения по SSH: %s", err)
 	}
 	defer client.Close()
+	fmt.Println("SSH-подключение установлено")
 
 	// Установка SNMP-клиента
+	fmt.Println("Подключаемся к SNMP-серверу на устройстве...")
 	snmp := &gosnmp.GoSNMP{
 		Target:    snmpTarget,
 		Port:      161,
@@ -55,8 +60,10 @@ func main() {
 		log.Fatalf("Ошибка подключения к SNMP-серверу: %s", err)
 	}
 	defer snmp.Conn.Close()
+	fmt.Println("SNMP-подключение успешно установлено")
 
 	// Выполнение команды изменения QoS
+	fmt.Println("Изменяем параметры QoS через SNMP...")
 	value := 1 // Пример значения QoS (значение замените на корректное для вашего устройства)
 	oidValue := gosnmp.SnmpPDU{
 		Name:  qosOID,
@@ -68,8 +75,10 @@ func main() {
 	if err != nil {
 		log.Fatalf("Ошибка изменения QoS: %s", err)
 	}
+	fmt.Println("Параметры QoS успешно изменены")
 
 	// Проверка изменений
+	fmt.Println("Проверяем изменение QoS...")
 	result, err := snmp.Get([]string{qosOID})
 	if err != nil {
 		log.Fatalf("Ошибка получения QoS: %s", err)
@@ -78,4 +87,5 @@ func main() {
 	for _, variable := range result.Variables {
 		fmt.Printf("Изменение QoS выполнено. Текущее значение: %d\n", variable.Value)
 	}
+	fmt.Println("Программа завершена успешно")
 }
