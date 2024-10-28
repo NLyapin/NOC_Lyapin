@@ -1,8 +1,8 @@
 package main
 
 import (
-	"fmt"
 	"log"
+	"os/exec"
 
 	"golang.org/x/crypto/ssh"
 )
@@ -33,35 +33,26 @@ func QoS() {
 	defer client.Close()
 	log.Println("Подключение успешно!")
 
-	// Создание SSH сессии
 	session, err := client.NewSession()
 	if err != nil {
 		log.Fatalf("Ошибка создания сессии: %s", err)
 	}
 	defer session.Close()
 
-	// Команды для настройки QoS
-	command := `
-    configure terminal
-    qos profile name HighPriority
-    qos priority high
-    qos profile name LowPriority
-    qos priority low
-    interface ethernet 0/1
-    qos apply profile HighPriority
-    commit
-    show qos configuration
-    `
-
-	// Выполнение команды и получение вывода
-	output, err := session.CombinedOutput(command)
-	if err != nil {
-		log.Printf("Ошибка выполнения команды: %s", err)
-		log.Printf("Вывод: %s", string(output))
-		return // Завершаем выполнение функции при ошибке
+	// Запуск minicom
+	minicomCommand := exec.Command("minicom", "-wD", "/dev/usbports/st10_esr")
+	if err := minicomCommand.Start(); err != nil {
+		log.Fatalf("Ошибка запуска minicom: %s", err)
 	}
 
-	// Вывод результата
-	fmt.Println("Результат настройки QoS:")
-	fmt.Println(string(output))
+	// Здесь предполагается, что вы входите в minicom, используя учетные данные admin/password
+	log.Println("Запуск minicom... Войдите как 'admin' с паролем 'password'.")
+
+	// Подождите, пока minicom завершится
+	if err := minicomCommand.Wait(); err != nil {
+		log.Fatalf("Ошибка minicom: %s", err)
+	}
+
+	// Если требуется, выполните дополнительные команды после выхода из minicom
+	log.Println("Выход из minicom. Продолжение выполнения программы.")
 }
