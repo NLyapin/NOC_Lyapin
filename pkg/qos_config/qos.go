@@ -1,22 +1,31 @@
 package main
 
 import (
+	"fmt"
 	"log"
-	"os/exec"
+	"time"
 
+	"github.com/gosnmp/gosnmp"
 	"golang.org/x/crypto/ssh"
 )
 
+// Параметры подключения
+const (
+	sshHost       = "10.25.16.254:62214"
+	sshUser       = "user"
+	sshPassword   = "user6501"
+	snmpCommunity = "private"
+	snmpTarget    = "192.168.1.1" // IP роутера
+)
+
+// QoS настройка в SNMP OID
+var (
+	qosOID = ".1.3.6.1.2.1.2.2.1.8" // Пример OID для QoS (замените на корректный для вашего устройства)
+)
+
+// Устанавливаем SSH-подключение и туннель к SNMP-серверу
 func main() {
-	QoS() // Вызов функции QoS
-}
-
-func QoS() {
-	sshHost := "10.25.16.254:62214"
-	sshUser := "user"
-	sshPassword := "user6501"
-
-	// Настройки SSH клиента
+	// Подключение по SSH
 	config := &ssh.ClientConfig{
 		User: sshUser,
 		Auth: []ssh.AuthMethod{
@@ -25,34 +34,48 @@ func QoS() {
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 	}
 
-	log.Println("Подключение к устройству...")
 	client, err := ssh.Dial("tcp", sshHost, config)
 	if err != nil {
-		log.Fatalf("Ошибка подключения: %s", err)
+		log.Fatalf("Ошибка подключения по SSH: %s", err)
 	}
 	defer client.Close()
-	log.Println("Подключение успешно!")
 
-	session, err := client.NewSession()
+	// Установка SNMP-клиента
+	snmp := &gosnmp.GoSNMP{
+		Target:    snmpTarget,
+		Port:      161,
+		Community: snmpCommunity,
+		Version:   gosnmp.Version2c,
+		Timeout:   time.Duration(2) * time.Second,
+		Retries:   1,
+	}
+
+	err = snmp.Connect()
 	if err != nil {
-		log.Fatalf("Ошибка создания сессии: %s", err)
+		log.Fatalf("Ошибка подключения к SNMP-серверу: %s", err)
 	}
-	defer session.Close()
+	defer snmp.Conn.Close()
 
-	// Запуск minicom
-	minicomCommand := exec.Command("minicom", "-wD", "/dev/usbports/st10_esr")
-	if err := minicomCommand.Start(); err != nil {
-		log.Fatalf("Ошибка запуска minicom: %s", err)
-	}
-
-	// Здесь предполагается, что вы входите в minicom, используя учетные данные admin/password
-	log.Println("Запуск minicom... Войдите как 'admin' с паролем 'password'.")
-
-	// Подождите, пока minicom завершится
-	if err := minicomCommand.Wait(); err != nil {
-		log.Fatalf("Ошибка minicom: %s", err)
+	// Выполнение команды изменения QoS
+	value := 1 // Пример значения QoS (значение замените на корректное для вашего устройства)
+	oidValue := gosnmp.SnmpPDU{
+		Name:  qosOID,
+		Type:  gosnmp.Integer,
+		Value: value,
 	}
 
-	// Если требуется, выполните дополнительные команды после выхода из minicom
-	log.Println("Выход из minicom. Продолжение выполнения программы.")
+	_, err = snmp.Set([]gosnmp.SnmpPDU{oidValue})
+	if err != nil {
+		log.Fatalf("Ошибка изменения QoS: %s", err)
+	}
+
+	// Проверка изменений
+	result, err := snmp.Get([]string{qosOID})
+	if err != nil {
+		log.Fatalf("Ошибка получения QoS: %s", err)
+	}
+
+	for _, variable := range result.Variables {
+		fmt.Printf("Изменение QoS выполнено. Текущее значение: %d\n", variable.Value)
+	}
 }
