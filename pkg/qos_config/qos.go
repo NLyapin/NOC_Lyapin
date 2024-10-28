@@ -8,7 +8,10 @@ import (
 )
 
 func main() {
-	// Параметры подключения SSH
+	QoS() // Вызов функции QoS
+}
+
+func QoS() {
 	sshHost := "10.25.16.254:62214"
 	sshUser := "user"
 	sshPassword := "user6501"
@@ -22,12 +25,13 @@ func main() {
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 	}
 
-	// Подключение к роутеру
+	log.Println("Подключение к устройству...")
 	client, err := ssh.Dial("tcp", sshHost, config)
 	if err != nil {
 		log.Fatalf("Ошибка подключения: %s", err)
 	}
 	defer client.Close()
+	log.Println("Подключение успешно!")
 
 	// Создание SSH сессии
 	session, err := client.NewSession()
@@ -52,7 +56,9 @@ func main() {
 	// Выполнение команды и получение вывода
 	output, err := session.CombinedOutput(command)
 	if err != nil {
-		log.Fatalf("Ошибка выполнения команды: %s", err)
+		log.Printf("Ошибка выполнения команды: %s", err)
+		log.Printf("Вывод: %s", string(output))
+		return // Завершаем выполнение функции при ошибке
 	}
 
 	// Вывод результата
