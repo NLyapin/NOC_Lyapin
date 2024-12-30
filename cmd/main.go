@@ -3,8 +3,8 @@ package main
 import (
 	"log"
 
-	"config-manager/internal/client" // Импорт пакета client
-	"config-manager/internal/gnmi"   // Импорт пакета gnmi
+	"config-manager/internal/client" // Используем client для создания gNMI клиента
+	"config-manager/internal/gnmi"   // Пакет gnmi для работы с gNMI
 )
 
 func main() {
@@ -20,7 +20,8 @@ func main() {
 	}
 	defer conn.Close()
 
-	gnmiClient := gnmi.NewGNMIClient(conn) // Используем gnmi.NewGNMIClient для получения клиента
+	// Создаем gNMI клиента с помощью gRPC соединения
+	gnmiClient := gnmi.NewGNMIClient(conn) // Это вызов функции из пакета gnmi, которая использует grpc соединение
 
 	// Чтение конфигурации интерфейса
 	interfaceName := "eth0"
