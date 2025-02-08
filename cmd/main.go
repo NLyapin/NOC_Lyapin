@@ -2,41 +2,74 @@ package main
 
 import (
 	"log"
-
-	"config-manager/internal/client" // Используем client для создания gNMI клиента
-	"config-manager/internal/gnmi"   // Пакет gnmi для работы с gNMI
+	"openconfig-monitor/internal/config"
+	"openconfig-monitor/internal/monitor"
+	"os"
+	"time"
 )
 
 func main() {
-	server := "192.0.2.1:57400"
-	certFile := "certs/client.crt"
-	keyFile := "certs/client.key"
-	caFile := "certs/ca.crt"
+	log.Println("🚀 Запуск OpenConfig Monitor...")
 
-	// Создание gNMI клиента
-	conn, err := client.NewGNMIClient(server, certFile, keyFile, caFile) // Используем client.NewGNMIClient
-	if err != nil {
-		log.Fatalf("Ошибка при создании клиента: %v", err)
+	// Если переданы аргументы, выполняем команду
+	if len(os.Args) > 1 {
+		command := os.Args[1]
+
+		switch command {
+		case "add-interface":
+			err := config.AddInterface("Loopback2", "iana-if-type:softwareLoopback", true)
+			if err != nil {
+				log.Fatalf("Ошибка добавления интерфейса: %v", err)
+			}
+		case "set-ip":
+			if len(os.Args) < 4 {
+				log.Fatal("Использование: go run cmd/main.go set-ip <interface> <ip>")
+			}
+			err := config.SetIPAddress(os.Args[2], os.Args[3])
+			if err != nil {
+				log.Fatalf("Ошибка установки IP: %v", err)
+			}
+		case "delete-interface":
+			if len(os.Args) < 3 {
+				log.Fatal("Использование: go run cmd/main.go delete-interface <interface>")
+			}
+			err := config.DeleteInterface(os.Args[2])
+			if err != nil {
+				log.Fatalf("Ошибка удаления интерфейса: %v", err)
+			}
+		case "add-route":
+			if len(os.Args) < 4 {
+				log.Fatal("Использование: go run cmd/main.go add-route <prefix> <nexthop>")
+			}
+			err := config.AddRoute(os.Args[2], os.Args[3])
+			if err != nil {
+				log.Fatalf("Ошибка добавления маршрута: %v", err)
+			}
+		case "delete-route":
+			if len(os.Args) < 3 {
+				log.Fatal("Использование: go run cmd/main.go delete-route <prefix>")
+			}
+			err := config.DeleteRoute(os.Args[2])
+			if err != nil {
+				log.Fatalf("Ошибка удаления маршрута: %v", err)
+			}
+		default:
+			log.Fatal("Неизвестная команда")
+		}
+
+		return
 	}
-	defer conn.Close()
 
-	// Создаем gNMI клиента с помощью gRPC соединения
-	gnmiClient := gnmi.NewGNMIClient(conn) // Это вызов функции из пакета gnmi, которая использует grpc соединение
+	// Если команд нет, просто мониторим состояние
+	go func() {
+		for {
+			err := monitor.GetConfig()
+			if err != nil {
+				log.Printf("Ошибка мониторинга: %v", err)
+			}
+			time.Sleep(5 * time.Second)
+		}
+	}()
 
-	// Чтение конфигурации интерфейса
-	interfaceName := "eth0"
-	config, err := gnmi.GetInterfaceConfig(gnmiClient, interfaceName)
-	if err != nil {
-		log.Fatalf("Ошибка чтения конфигурации интерфейса: %v", err)
-	}
-
-	log.Printf("Текущая конфигурация интерфейса %s: %v", interfaceName, config)
-
-	// Обновление описания интерфейса
-	newDescription := "Updated interface description"
-	if err := gnmi.SetInterfaceDescription(gnmiClient, interfaceName, newDescription); err != nil {
-		log.Fatalf("Ошибка обновления описания интерфейса: %v", err)
-	}
-
-	log.Println("Описание интерфейса успешно обновлено.")
+	select {} // Бесконечное ожидание (чтобы программа не завершалась)
 }
